@@ -6,7 +6,13 @@ tic;
 
 %% Model Construction
 % Electrochemical Model Parameters
-run params_bosch
+% run params_bosch
+run params_dualfoil
+
+%% JUST ADDED FROM params_bosch
+% p.R_f_n = 1.0000e-05;
+% p.R_f_p = 5.0000e-05;
+% p.n_Li_s = 2.5975;
 
 % Vector lengths
 Ncsn = p.PadeOrder * (p.Nxn-1);
@@ -19,47 +25,58 @@ Nnp = Nn+Np;
 Nx = p.Nx - 3;
 Nz = 3*Nnp + Nx;
 
-%% Input Signal
+% For LiCo02, with voltage lim [2.5, 4.05], n_Li_s = 2.50, then capacity is
+% 29.601016543579075 Ah/m^2
+OneC = 29.601016543579075; %[Ah/m^2]
 
-% Manual Data
-%%%%%%%%%%% Commented by Federico %%%%%%%%%%%%%
-% % t = -2:p.delta_t:500;       % 60*60
-% % Iamp = zeros(length(t),1);
-% % Iamp(t >= 0) = 10;
-% % % Iamp(t >= (20*60)) = 0;
-% % % Iamp(t >= 20) = 0;
-% % % Iamp(t >= 30) = 10;
-% % % Iamp(t >= 40) = 5;
-% % I = Iamp;
+%% Constant Current Data %%
+% %
+% t = -2:p.delta_t:(720);
+% %%I(mod(t,20) < 10) = 350; %350, 10C Discharge for LiFePO4 Cell @ 35Ah/m^2 for 1C
+% 
+% %I(mod(t,20) < 10) = -3*67; %-201, 3C Charge for LiCoO2 Cell 67Ah/m^2 for 1C (etas)
+% % I(mod(t,20) < 10) = 7*67; %7C Discharge for LiCoO2 Cell 67Ah/m^2 for 1C (ce)
+% I = 5*OneC*ones(size(t));
+
+%%%%%%%%%%%%%%%%% FOR INPUT CYCLE FROM DFN MODEL %%%%%%%%%%%%%%%%
+% datafile='data/june292014UDDS.mat';
+datafile='data/UDDSx2_dfn.mat';
+load(datafile);
+
+t_long = out.time';
+t = (t_long(1):2:t_long(end))';
+NT = length(t);
+
+% Current | Positive <=> Discharge, Negative <=> Charge
+I_long = out.cur';
+I = interp1(t_long,I_long,t,'linear*');
+I(t <=0) = 0;
 
 %%%%%%%%% Commented by Federico %%%%%%%%%%%
 
 % Pulse Data
-t = -2:p.delta_t:120;
-I(t >= 0) = 0;
-I(mod(t,40) < 20) = 105;
-Iamp = I;
+% t = -2:p.delta_t:120;
+% I(t >= 0) = 0; 
+% I(mod(t,20) < 10) = 350;% 3C = 105   -10C = -350
+% Iamp = I;
 
 % Experimental Data
 %%%%%%%%%%% Uncommented by Federico %%%%%%%%%%%%%
-%  load('data/UDDSx2_batt_ObsData.mat');
-%  tdata = t;
-%  Tfinal = tdata(end);
-%  t = -2:p.delta_t:Tfinal;
-%  Iamp = interp1(tdata,I,t,'spline',0);
-%  Ah_amp = trapz(tdata,I)/3600;
-%  I = Iamp * (0.4*35)/Ah_amp;
-%  %cut the simulation time to 500 seconds
-%  t=-2:p.delta_t:500;
-%  I=I(1:length(t));
-
+% %  load('data/UDDSx2_batt_ObsData.mat');
+% %  tdata = t;
+% %  Tfinal = tdata(end);
+% %  t = -2:p.delta_t:Tfinal;
+% %  Iamp = interp1(tdata,I,t,'spline',0);
+% %  Ah_amp = trapz(tdata,I)/3600;
+% %  I = Iamp * (0.4*35)/Ah_amp;
+% % %  I = I*4;
 %%%%%%%%% Uncommented by Federico %%%%%%%%%%%
 
 NT = length(t);
 
 %% Initial Conditions & Preallocation
 % Solid concentration
-V0 = 3.9;
+V0 = 4.0;
 [csn0,csp0] = init_cs(p,V0);
 
 c_s_n0 = zeros(p.PadeOrder,1);
@@ -92,8 +109,8 @@ T = zeros(NT,1);
 T(1) = p.T_amp;
 
 % Solid Potential
-Uref_n0 = refPotentialAnode(p, csn0(1)*ones(Nn,1) / p.c_s_n_max);
-Uref_p0 = refPotentialCathode(p, csp0(1)*ones(Np,1) / p.c_s_p_max);
+Uref_n0 = p.uref_n(p, csn0(1)*ones(Nn,1) / p.c_s_n_max);
+Uref_p0 = p.uref_p(p, csp0(1)*ones(Np,1) / p.c_s_p_max);
 
 phi_s_n = zeros(Nn,NT);
 phi_s_p = zeros(Np,NT);
@@ -142,8 +159,8 @@ Volt = zeros(NT,1);
 Volt(1) = phi_s_p(end,1) - phi_s_n(1,1);
 
 % Conservation of Li-ion matter
-nLi = zeros(NT,1);
-nLidot = zeros(NT,1);
+n_Li_s = zeros(NT,1);
+n_Li_e = zeros(NT,1);
 
 % Stats
 newtonStats.iters = zeros(NT,1);
@@ -272,19 +289,19 @@ for k = 1:(NT-1)
     eta_s_Ln(k+1) = y(end-3);
     
     Volt(k+1) = y(end-2);
-    nLi(k+1) = y(end-1);
-    nLidot(k+1) = y(end);
+    n_Li_s(k+1) = y(end-1);
+    n_Li_e(k+1) = y(end);
     
     eta_s_n = phi_s_n - phi_e(1:Nn,:);
     eta_s_p = phi_s_p - phi_e(end-Np+1:end, :);
     
-    fprintf(1,'Time : %3.2f sec | Current : %2.4f A/m^2 | SOC : %1.3f | Voltage : %2.4fV\n',...
-        t(k),I(k+1),SOC(k+1),Volt(k+1));
+    fprintf(1,'Time : %3.2f sec | C-rate : %2.2f | SOC : %1.3f | Voltage : %2.4fV\n',...
+        t(k),I(k+1)/OneC,SOC(k+1),Volt(k+1));
     
     if(Volt(k+1) < p.volt_min)
         fprintf(1,'Min Voltage of %1.1fV exceeded\n',p.volt_min);
         beep;
-        break;
+        %break;
     elseif(Volt(k+1) > p.volt_max)
         fprintf(1,'Max Voltage of %1.1fV exceeded\n',p.volt_max);
         beep;
@@ -292,7 +309,7 @@ for k = 1:(NT-1)
     elseif(any(c_ex(:,k) < 1))
         fprintf(1,'c_e depleted below 1 mol/m^3\n');
         beep;
-        break;
+        %break;
     end
 
 end
@@ -305,3 +322,42 @@ fprintf(1,'Simulation Time : %3.2f min\n',simTime/60);
 
 %% Plot Results
 
+figure(1)
+clf
+subplot(411)
+plot(t,I/OneC)
+legend('Icrate')
+xlim([0 t(end)])
+subplot(412)
+plot(t,Volt)
+legend('V')
+xlim([0 t(end)])
+subplot(413)
+plot(t,c_e_0p/1e3)
+hold on
+plot(t,0.15*ones(size(t)),'k--')
+legend('ce0p')
+xlim([0 t(end)])
+subplot(414)
+plot(t,eta_s_Ln)
+hold on
+plot(t,0*ones(size(t)),'k--')
+legend('eta')
+ylim([-0.15 0.2])
+xlim([0 t(end)])
+
+
+%% Save Output Data for Plotting (HEP)
+out.date=date;
+out.time=t;
+out.cur=I;
+out.volt=Volt;
+out.soc=SOC;
+out.c_ss_n=c_ss_n;
+out.c_ss_p=c_ss_p;
+out.eta_s_Ln=eta_s_Ln;
+out.ce0p=c_e_0p;
+out.simtime=simTime;
+
+%save('data/new/dfn_etas_new.mat', '-struct', 'out'); %3C Charge LiCoO2
+% save('data/new/dfn_ce_new.mat', '-struct', 'out'); %10C Discharge LiCoO2

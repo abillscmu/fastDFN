@@ -1,18 +1,12 @@
-%% Doyle-Fuller-Newman Model with Linear Reference Governor
-%   Created September 11, 2012 by Scott Moura
-%   Modified August 5, 2014 by Hector Perez
+%% Doyle-Fuller-Newman Model
+%   Created May 22, 2012 by Scott Moura
 clc;
 clear;
 tic;
 
 %% Model Construction
 % Electrochemical Model Parameters
-run params_dualfoil
-
-% From params_bosch for federico version
-p.R_f_n = 1.0000e-05; %added
-p.R_f_p = 5.0000e-05; %added
-p.n_Li_s = 2.5975;    %added
+run params_bosch
 
 % Vector lengths
 Ncsn = p.PadeOrder * (p.Nxn-1);
@@ -28,61 +22,57 @@ Nz = 3*Nnp + Nx;
 %% Input Signal
 
 % Manual Data
-% t = -2:p.delta_t:(60*60);
-% Iamp = zeros(length(t),1);
-% Iamp(t >= 0) = 35;
-% Iamp(t >= (20*60)) = 0;
-% Iamp(t >= 20) = 0;
-% Iamp(t >= 30) = 10;
-% Iamp(t >= 40) = 5;
-% I = Iamp;
+%%%%%%%%%%% Commented by Federico %%%%%%%%%%%%%
+% % t = -2:p.delta_t:500;       % 60*60
+% % Iamp = zeros(length(t),1);
+% % Iamp(t >= 0) = 10;
+% % % Iamp(t >= (20*60)) = 0;
+% % % Iamp(t >= 20) = 0;
+% % % Iamp(t >= 30) = 10;
+% % % Iamp(t >= 40) = 5;
+% % I = Iamp;
+
+%%%%%%%%% Commented by Federico %%%%%%%%%%%
 
 % Pulse Data
-t = -2:p.delta_t:(120);
-% Ir(t >= 0) = -35;
-%%Ir(mod(t,20) < 10) = 350; %350, 10C Discharge for LiFePO4 Cell @ 35Ah/m^2 for 1C
-
-%Ir(mod(t,20) < 10) = -3*67; %-201, 3C Charge for LiCoO2 Cell 67Ah/m^2 for 1C (etas)
-Ir(mod(t,20) < 10) = 7*67; %7C Discharge for LiCoO2 Cell 67Ah/m^2 for 1C (ce)
-
-% Ir(end) = 0;
-%%Iamp = Ir;
+t = -2:p.delta_t:120;
+I(t >= 0) = 0;
+I(mod(t,40) < 20) = 105;
+Iamp = I;
 
 % Experimental Data
-% load('data/UDDSx2_batt_ObsData.mat');
-% tdata = t;
-% Tfinal = tdata(end);
-% t = -2:p.delta_t:Tfinal;
-% Iamp = interp1(tdata,I,t,'spline',0);
-% Ah_amp = trapz(tdata,I)/3600;
-% I = Iamp * (0.4*35)/Ah_amp;
+%%%%%%%%%%% Uncommented by Federico %%%%%%%%%%%%%
+%  load('data/UDDSx2_batt_ObsData.mat');
+%  tdata = t;
+%  Tfinal = tdata(end);
+%  t = -2:p.delta_t:Tfinal;
+%  Iamp = interp1(tdata,I,t,'spline',0);
+%  Ah_amp = trapz(tdata,I)/3600;
+%  I = Iamp * (0.4*35)/Ah_amp;
+%  %cut the simulation time to 500 seconds
+%  t=-2:p.delta_t:500;
+%  I=I(1:length(t));
+
+%%%%%%%%% Uncommented by Federico %%%%%%%%%%%
 
 NT = length(t);
 
 %% Initial Conditions & Preallocation
-% Reference Govorner Current
-I = zeros(NT,1);
-beta = zeros(NT,1);
-
 % Solid concentration
-%csn0 = 0.6 * p.c_s_n_max; % [mols/cm^3] 0.9
-%csp0 = 0.74 * p.c_s_p_max; % [mols/cm^3] 0.55
-
-%V0 = 3.88; %3C Charge 80% SOC
-V0 = 3.765; %7C Discharge 60% SOC
-
-[csn0,csp0] = init_cs(p,V0); %added
+V0 = 3.9;
+[csn0,csp0] = init_cs(p,V0);
 
 c_s_n0 = zeros(p.PadeOrder,1);
 c_s_p0 = zeros(p.PadeOrder,1);
 
 %%%%% Initial condition based on controllable canonical form
-%c_s_n0(1) = csn0 * (-p.R_s_n/3) * (p.R_s_n^4 / (3465 * p.D_s_n^2));
-%c_s_p0(1) = csp0 * (-p.R_s_p/3) * (p.R_s_p^4 / (3465 * p.D_s_p^2));
+% c_s_n0(1) = csn0 * (-p.R_s_n/3) * (p.R_s_n^4 / (3465 * p.D_s_n^2));
+% c_s_p0(1) = csp0 * (-p.R_s_p/3) * (p.R_s_p^4 / (3465 * p.D_s_p^2));
 
 %%%%% Initial condition based on Jordan form
-c_s_n0(3) = csn0; %added
-c_s_p0(3) = csp0; %added
+c_s_n0(3) = csn0;
+c_s_p0(3) = csp0;
+%%%%%
 
 c_s_n = zeros(Ncsn,NT);
 c_s_p = zeros(Ncsp,NT);
@@ -92,7 +82,7 @@ c_s_p(:,1) = repmat(c_s_p0, [Nn 1]);
 
 % Electrolyte concentration
 c_e = zeros(Nx,NT);
-c_e(:,1) = 1e3 * ones(Nx,1);
+c_e(:,1) = p.c_e * ones(Nx,1);
 
 c_ex = zeros(Nx+4,NT);
 c_ex(:,1) = c_e(1,1) * ones(Nx+4,1);
@@ -102,8 +92,8 @@ T = zeros(NT,1);
 T(1) = p.T_amp;
 
 % Solid Potential
-Uref_n0 = refPotentialAnode(p, csn0(1)*ones(Nn,1) / p.c_s_n_max);
-Uref_p0 = refPotentialCathode(p, csp0(1)*ones(Np,1) / p.c_s_p_max);
+Uref_n0 = p.uref_n(p, csn0(1)*ones(Nn,1) / p.c_s_n_max);
+Uref_p0 = p.uref_p(p, csp0(1)*ones(Np,1) / p.c_s_p_max);
 
 phi_s_n = zeros(Nn,NT);
 phi_s_p = zeros(Np,NT);
@@ -142,7 +132,10 @@ eta_p = zeros(Np,NT);
 
 % Constraint Outputs
 c_e_0p = zeros(NT,1);
+c_e_0p(1) = c_ex(1,1);
+
 eta_s_Ln = zeros(NT,1);
+eta_s_Ln(1) = phi_s_p(1,1) - phi_e(1,1);
 
 % Voltage
 Volt = zeros(NT,1);
@@ -167,22 +160,23 @@ z0 = [phi_s_n(:,1); phi_s_p(:,1); i_en(:,1); i_ep(:,1);...
 x = zeros(length(x0), NT);
 z = zeros(length(z0), NT);
 
-I(1) = Ir(1);
 x(:,1) = x0;
 z(:,1) = z0;
 
 %% Precompute data
 % Solid concentration matrices
-[A_csn,B_csn,A_csp,B_csp,C_csn,C_csp] = c_s_mats(p);
+[A_csn,B_csn,A_csp,B_csp,C_csn,C_csp,A_csn_normalized, A_csp_normalized] = c_s_mats(p);
 p.A_csn = A_csn;
+p.A_csn_normalized= A_csn_normalized;
 p.B_csn = B_csn;
 p.A_csp = A_csp;
+p.A_csp_normalized=A_csp_normalized;
 p.B_csp = B_csp;
 p.C_csn = C_csn;
 p.C_csp = C_csp;
 
 % Electrolyte concentration matrices
-[~,~,C_ce] = c_e_mats_federico(p,c_ex); %changed to federico
+[trash_var,trash_var,C_ce] = c_e_mats_federico(p,c_ex);
 p.C_ce = C_ce;
 
 % Solid Potential
@@ -221,16 +215,6 @@ disp('Simulating DFN Model...');
 
 for k = 1:(NT-1)
     
-    % Modified Reference Governor
-    if(k > 1 && Ir(k) ~= 0)
-        beta(k) = linrg(p, x(:,k-1),z(:,k-1),I(k-1), x(:,k),z(:,k),Ir(k));
-    else
-        beta(k) = 1;
-    end
-
-
-    I(k+1) = beta(k) * Ir(k);
-    
     % Current
     if(k == 1)
         Cur_vec = [I(k), I(k), I(k+1)];
@@ -239,7 +223,7 @@ for k = 1:(NT-1)
     end
     
     % Step-forward in time
-    [x(:,k+1), z(:,k+1), stats] = cn_dfn_federico(x(:,k),z(:,k),Cur_vec,p); %changed to federico
+    [x(:,k+1), z(:,k+1), stats] = cn_dfn_federico(x(:,k),z(:,k),Cur_vec,p);
 
     % Parse out States
     c_s_n(:,k+1) = x(1:Ncsn, k+1);
@@ -267,10 +251,10 @@ for k = 1:(NT-1)
     
     newtonStats.iters(k+1) = stats.iters;
     newtonStats.relres{k+1} = stats.relres;
-%     newtonStats.condJac(k+1) = stats.condJac;
+    newtonStats.condJac(k+1) = stats.condJac;
     
     % Output data
-    [~, ~, y] = dae_dfn_federico(x(:,k+1),z(:,k+1),I(k+1),p);%changed to federico
+    [trash_var, trash_var, y] = dae_dfn_federico(x(:,k+1),z(:,k+1),I(k+1),p);
     
     c_ss_n(:,k+1) = y(1:Nn);
     c_ss_p(:,k+1) = y(Nn+1:Nnp);
@@ -284,8 +268,8 @@ for k = 1:(NT-1)
     eta_n(:,k+1) = y(2*Nnp+Nx+4+1 : 2*Nnp+Nx+4+Nn);
     eta_p(:,k+1) = y(2*Nnp+Nx+4+Nn+1 : 2*Nnp+Nx+4+Nn+Np);
     
-    c_e_0p(k) = y(end-4);
-    eta_s_Ln(k) = y(end-3);
+    c_e_0p(k+1) = y(end-4);
+    eta_s_Ln(k+1) = y(end-3);
     
     Volt(k+1) = y(end-2);
     nLi(k+1) = y(end-1);
@@ -300,7 +284,7 @@ for k = 1:(NT-1)
     if(Volt(k+1) < p.volt_min)
         fprintf(1,'Min Voltage of %1.1fV exceeded\n',p.volt_min);
         beep;
-        %break;
+        break;
     elseif(Volt(k+1) > p.volt_max)
         fprintf(1,'Max Voltage of %1.1fV exceeded\n',p.volt_max);
         beep;
@@ -308,7 +292,7 @@ for k = 1:(NT-1)
     elseif(any(c_ex(:,k) < 1))
         fprintf(1,'c_e depleted below 1 mol/m^3\n');
         beep;
-        %break;
+        break;
     end
 
 end
@@ -321,45 +305,3 @@ fprintf(1,'Simulation Time : %3.2f min\n',simTime/60);
 
 %% Plot Results
 
-figure(3)
-clf
-subplot(411)
-plot(t,Ir/67)
-hold on
-plot(t,I/67,'r')
-legend('Ircrate','Icrate')
-xlim([0 t(end)])
-subplot(412)
-plot(t,Volt)
-legend('V')
-xlim([0 t(end)])
-subplot(413)
-plot(t,c_e_0p/1e3)
-hold on
-plot(t,0.15*ones(size(t)),'k--')
-legend('ce0p')
-xlim([0 t(end)])
-subplot(414)
-plot(t,eta_s_Ln)
-hold on
-plot(t,0*ones(size(t)),'k--')
-legend('eta')
-ylim([-0.15 0.2])
-xlim([0 t(end)])
-
-%% Save Output Data for Plotting (HEP)
-
-out.date=date;
-out.time=t;
-out.refcur=Ir;
-out.cur=I;
-out.volt=Volt;
-out.soc=SOC;
-out.c_ss_n=c_ss_n;
-out.c_ss_p=c_ss_p;
-out.eta_s_Ln=eta_s_Ln;
-out.ce0p=c_e_0p;
-out.simtime=simTime;
-
-%save('data/new/linrg_etas_new.mat', '-struct', 'out'); %3C Charge LiCoO2
-save('data/new/linrg_ce_new.mat', '-struct', 'out'); %10C Discharge LiCoO2

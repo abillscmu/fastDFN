@@ -22,8 +22,8 @@ for idx = 1:maxiters
     theta_p = x(idx)/p.c_s_p_max;
     theta_n = (p.n_Li_s-p.epsilon_s_p*p.L_p*p.Area*x(idx))/(p.c_s_n_max*p.epsilon_s_n*p.L_n*p.Area);
 
-    OCPn = refPotentialAnode(p,theta_n);
-    OCPp = refPotentialCathode(p,theta_p);
+    OCPn = p.uref_n(p,theta_n);
+    OCPp = p.uref_p(p,theta_p);
 
     f(idx) = OCPp - OCPn - V;
         
@@ -63,8 +63,8 @@ csp0 = x(idx);
 %     theta_p = x(idx)/p.c_s_p_max;
 %     theta_n = (p.n_Li_s-p.epsilon_s_p*p.L_p*x(idx))/(p.c_s_n_max*p.epsilon_s_n*p.L_n);
 % 
-%     [OCPn,dOCPn] = refPotentialAnode(p,theta_n);
-%     [OCPp,dOCPp] = refPotentialCathode(p,theta_p);
+%     [OCPn,dOCPn] = p.uref_n(p,theta_n);
+%     [OCPp,dOCPp] = p.uref_p(p,theta_p);
 % 
 %     f(idx) = OCPp - OCPn - V;
 %     df = dOCPp/p.c_s_p_max + (p.epsilon_s_p*p.L_p)/(p.c_s_n_max*p.epsilon_s_n*p.L_n) * dOCPn;

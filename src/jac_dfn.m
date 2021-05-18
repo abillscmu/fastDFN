@@ -134,8 +134,8 @@ c_avg_p = y_csp(2,:)';
 % end
 
 % Equilibrium Potential and Gradient wrt bulk concentration
-[Unb,dUnb] = refPotentialAnode(p, c_avg_n / p.c_s_n_max);
-[Upb,dUpb] = refPotentialCathode(p, c_avg_p / p.c_s_p_max);
+[Unb,dUnb] = p.uref_n(p, c_avg_n / p.c_s_n_max);
+[Upb,dUpb] = p.uref_p(p, c_avg_p / p.c_s_p_max);
 
 % Derivatives wrt c_s
 dfTdcsn_int = -(p.a_s_n*p.Faraday * jn .* dUnb) / (p.rho_avg*p.C_p);
@@ -301,8 +301,8 @@ di0dcen = p.k_n*sqrt(c_en.*c_ss_n.*(p.c_s_n_max - c_ss_n)) ./ (2*c_en);
 di0dcep = p.k_p*sqrt(c_ep.*c_ss_p.*(p.c_s_p_max - c_ss_p)) ./ (2*c_ep);
 
 % Equilibrium Potential
-[Unref,dUnref] = refPotentialAnode(p, c_ss_n / p.c_s_n_max);
-[Upref,dUpref] = refPotentialCathode(p, c_ss_p / p.c_s_p_max);
+[Unref,dUnref] = p.uref_n(p, c_ss_n / p.c_s_n_max);
+[Upref,dUpref] = p.uref_p(p, c_ss_p / p.c_s_p_max);
 
 % Overpotential
 eta_n = phi_s_n - phi_e(1:Nn) - Unref - p.Faraday*p.R_f_n*jn;
