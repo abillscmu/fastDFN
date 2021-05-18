@@ -78,7 +78,9 @@ p.Area = 1;           % Electrode current collector area [m^2]
 %% Kinetic Params
 p.R = 8.314472;       % Gas constant, [J/mol-K]
 p.alph = 0.5;         % Charge transfer coefficients
-p.R_SEI = 1e-3;       % Resistivity of SEI layer, [Ohms*m^2]
+% p.R_SEI = 1e-3;       % Resistivity of SEI layer, [Ohms*m^2]
+p.R_f_n = 1e-3;       % Resistivity of SEI layer, [Ohms*m^2]
+p.R_f_p = 0;       % Resistivity of SEI layer, [Ohms*m^2]
 
 % Reaction rates
 p.k_n = 1e-5;  % Reaction rate in neg. electrode, [(A/m^2)*(mol^3/mol)^(1+alpha)]
@@ -122,6 +124,7 @@ p.dUref_dT = -0.4e-3; % [V/K] approx. from Al Hallaj et al 2000, JPS
 p.c_s_n_max = 3.6e3 * 372 * 1800 / p.Faraday;   % Max concentration in anode, [mol/m^3]
 p.c_s_p_max = 3.6e3 * 247 * 5010 / p.Faraday;    % Max concentration in cathode, [mol/m^3]
 
+p.n_Li_s = 2.50;        % Total moles of lithium in solid phase [mol]
 p.c_e = 1e3;              % Fixed electrolyte concentration for SPM, [mol/m^3]
 
 %% Cutoff voltages
@@ -150,4 +153,14 @@ p.delta_x_n = 1 / p.Nxn;
 p.delta_x_s = 1 / p.Nxs;
 p.delta_x_p = 1 / p.Nxp;
 
+%% Constrains Parameters (Niloofar added)
+theta_min_p = 0.5;
+theta_max_p = 0.99;
+theta_min_n = 0.01;
+theta_max_n = 0.9;
 
+T_min = 200;  % I just picked a random big number.
+T_max = 400;  % I just picked a random big number.
+
+c_e_min = 0.15;
+c_e_max = 2;  % I just picked a random big number.
