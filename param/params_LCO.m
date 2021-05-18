@@ -148,3 +148,6 @@ p.delta_x_n = 1 / p.Nxn;
 p.delta_x_s = 1 / p.Nxs;
 p.delta_x_p = 1 / p.Nxp;
 
+p.uref_n = @refPotentialAnode
+p.uref_p = @refPotentialCathode
+

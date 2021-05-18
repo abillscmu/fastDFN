@@ -236,8 +236,8 @@ aFRT = (p.alph*p.Faraday)/(p.R*T);
 % Equilibrium Potential, U^{\pm}(c_ss)
 theta_n = c_ss_n / p.c_s_n_max;
 theta_p = c_ss_p / p.c_s_p_max;
-Unref = refPotentialAnode(p, theta_n);
-Upref = refPotentialCathode(p, theta_p);
+Unref = p.uref_n(p, theta_n);
+Upref = p.uref_p(p, theta_p);
 
 % Overpotential, \eta
 eta_n = phi_s_n - phi_e(1:Nn) - Unref - p.Faraday*p.R_f_n*jn;
@@ -251,8 +251,8 @@ jp_dot = 2/p.Faraday * i_0p .* sinh(aFRT * eta_p) - jp;
 % Equilibrium Potential and Gradient wrt bulk concentration
 theta_avg_n = c_avg_n / p.c_s_n_max;
 theta_avg_p = c_avg_p / p.c_s_p_max;
-[Unb,~,dUnbdT] = refPotentialAnode(p, theta_avg_n);
-[Upb,~,dUpbdT] = refPotentialCathode(p, theta_avg_p);
+[Unb,~,dUnbdT] = p.uref_n(p, theta_avg_n);
+[Upb,~,dUpbdT] = p.uref_p(p, theta_avg_p);
 
 % Heat generated from intercalation (w/o boundaries for NOW)
 Q_nx = p.a_s_n*p.Faraday * jn .* (Unb - T*dUnbdT);

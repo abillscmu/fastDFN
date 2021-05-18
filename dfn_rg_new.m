@@ -115,8 +115,8 @@ T = zeros(NT,1);
 T(1) = T0;
 
 % Solid Potential
-Uref_n0 = refPotentialAnode(p, csn0(1)*ones(Nn,1) / p.c_s_n_max);
-Uref_p0 = refPotentialCathode(p, csp0(1)*ones(Np,1) / p.c_s_p_max);
+Uref_n0 = p.uref_n(p, csn0(1)*ones(Nn,1) / p.c_s_n_max);
+Uref_p0 = p.uref_p(p, csp0(1)*ones(Np,1) / p.c_s_p_max);
 
 phi_s_n = zeros(Nn,NT);
 phi_s_p = zeros(Np,NT);

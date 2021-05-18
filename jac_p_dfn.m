@@ -496,8 +496,8 @@ aFRT = (p.alph*p.Faraday)/(p.R*T);
 % Equilibrium Potential, U^{\pm}(c_ss)
 theta_n = c_ss_n / p.c_s_n_max;
 theta_p = c_ss_p / p.c_s_p_max;
-[Unref, dUnref] = refPotentialAnode(p, theta_n);
-[Upref, dUpref] = refPotentialCathode(p, theta_p);
+[Unref, dUnref] = p.uref_n(p, theta_n);
+[Upref, dUpref] = p.uref_p(p, theta_p);
 
 % Overpotential, \eta
 eta_n = phi_s_n - phi_e(1:Nn) - Unref - p.Faraday*p.R_f_n*jn;
